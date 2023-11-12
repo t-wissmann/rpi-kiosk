@@ -51,4 +51,20 @@ software, if not needed:
   ```
   sudo systemctl disable cups
   ```
-  - splash screen image: remove the `splash` from `/boot/cmdline.txt`
+  - disable splash screen:
+    ```
+    sudo raspi-config
+    ```
+    and then System Options → S6 Splash Screen
+    (manually: remove the `splash` from `/boot/cmdline.txt`)
+
+## Recommended Settings
+
+```
+wget https://github.com/t-wissmann/dotfiles/raw/master/tmux.conf -O ~/.tmux.conf
+```
+
+## Checking network status:
+```bash
+nmcli
+```
