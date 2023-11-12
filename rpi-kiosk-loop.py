@@ -3,6 +3,9 @@ import os
 import sys
 import argparse
 import configparser
+import select
+import signal
+import time
 import textwrap
 import subprocess
 import zipfile
@@ -113,29 +116,62 @@ class Page:
         self.proc = None
 
     def show_pdf(self):
+        debug(f"On {self.workspace}: PDF {self.filepath}")
         self.cmd = [
              '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
              self.workspace,
-             'mupdf',
+             'katarakt',
              self.filepath
              ]
-        self.proc = subprocess.call(self.cmd)
+        self.proc = subprocess.Popen(self.cmd)
 
     def detect_type(self):
-        debug(f'>> {self.filepath}')
+        pass
 
+
+def run_posters_signal_handler(signum, frame):
+    run_posters.signal_received = signum
 
 
 def run_posters(state):
+    run_posters.signal_received = None
     srcdir = state.cfgdir('page-directory')
     filenames = os.listdir(srcdir)
     pages = []
+    signal.signal(signal.SIGINT, run_posters_signal_handler)
+    signal.signal(signal.SIGTERM, run_posters_signal_handler)
+
     for idx, p in enumerate(filenames):
         p = Page(state, idx, os.path.join(srcdir, p))
         pages.append(p)
         p.detect_type()
         p.show_pdf()
 
+    keep_running = True
+    while keep_running:
+        data_ready = select.select([], [], [], 1.0)[0]
+        if run_posters.signal_received is not None:
+            debug(f"Exiting because of signal {run_posters.signal_received}")
+            keep_running = False
+            break
+
+    # send termination signal to all:
+    for p in pages:
+        p.proc.terminate()
+
+    # wait for them to actually shut down:
+    now = time.clock_gettime(time.CLOCK_MONOTONIC)
+    # since all have received SIGTERM already, all processes
+    # share the timeout:
+    total_timeout = now + 20
+    try:
+        for p in pages:
+            p.proc.wait(timeout=max(0, total_timeout - now))
+            # update current timestamp:
+            now = time.clock_gettime(time.CLOCK_MONOTONIC)
+    except TimeoutExpired:
+        for p in pages:
+            p.proc.kill()
 
 
 def main():

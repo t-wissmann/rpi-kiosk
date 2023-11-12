@@ -18,6 +18,9 @@ if [ -f ~/.wallpaper.png ] ; then
 else
     feh --bg-tile ~/.config/herbstluftwm/black.png
 fi
+# blank cursor:
+cursor=$HOME/.config/herbstluftwm/blank_ptr.xbm
+xsetroot -cursor "$cursor" "$cursor"
 
 # move mouse to bottom right corner:
 xdotool mousemove 10000 10000
