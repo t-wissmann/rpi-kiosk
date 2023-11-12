@@ -43,7 +43,6 @@ class State:
                 for key, value in entries.items():
                     self._config[sec][key] = value
             self._config.read(self.args.config)
-            
         return self._config
 
     def cfgdir(self, key, section='kiosk'):
@@ -104,26 +103,60 @@ def download(state):
             os.rmdir(dirpath)
 
 
+class Page:
+    def __init__(self, global_state, index, filepath):
+        self.state = global_state
+        self.index = index
+        self.filepath = filepath
+        self.workspace = str(index + 1)
+        self.cmd = None
+        self.proc = None
+
+    def show_pdf(self):
+        self.cmd = [
+             '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
+             self.workspace,
+             'mupdf',
+             self.filepath
+             ]
+        self.proc = subprocess.call(self.cmd)
+
+    def detect_type(self):
+        debug(f'>> {self.filepath}')
+
+
+
+def run_posters(state):
+    srcdir = state.cfgdir('page-directory')
+    filenames = os.listdir(srcdir)
+    pages = []
+    for idx, p in enumerate(filenames):
+        p = Page(state, idx, os.path.join(srcdir, p))
+        pages.append(p)
+        p.detect_type()
+        p.show_pdf()
+
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=os.path.join(Path.home(), '.config', 'rpi-kiosk.ini'),
                         help='Configuration file; default: ~/.config/rpi-kiosk.ini')
     subcommands = {
         'download': download,
+        'run': run_posters,
     }
-    subparsers = parser.add_subparsers(title='subcommands')
-    parser.set_defaults(func=None)
+    subparsers = parser.add_subparsers(metavar='SUBCOMMAND', dest='subparser_name')
 
     for cmdname, callback in subcommands.items():
         sp = subparsers.add_parser(cmdname, help=callback.__doc__)
-        sp.set_defaults(func=download)
 
     args = parser.parse_args()
     state = State(args)
 
     # call subcommand:
-    if args.func is not None:
-        args.func(state)
+    if args.subparser_name is not None and args.subparser_name in subcommands:
+        subcommands[args.subparser_name](state)
 
 
 main()

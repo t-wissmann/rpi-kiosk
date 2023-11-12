@@ -1,23 +1,62 @@
 #!/usr/bin/env bash
 
+herbstclient unlock
+
+herbstclient silent try new_attr bool my_first_start true
+if herbstclient compare my_first_start = true ; then
+    # do something
+    true
+fi
+
+killall picom
+herbstclient spawn picom -f
+
 # black background:
 xsetroot -solid '#000000'
+if [ -f ~/.wallpaper.png ] ; then
+    feh --bg-fill ~/.wallpaper.png
+else
+    feh --bg-tile ~/.config/herbstluftwm/black.png
+fi
+
 # move mouse to bottom right corner:
 xdotool mousemove 10000 10000
 
 # put all windows in fullscreen mode:
-herbstclient rule fullscreen=on
+herbstclient unrule -F
+#herbstclient rule fullscreen=on
 
 # create desktops:
 idx='-1'
 for name in {1..5} ; do
     idx=$((idx+1))
-    if ! herbstclient silent attr tags.${idx}.index ; then
+    if ! herbstclient silent attr tags.by-name."${name}".index ; then
         herbstclient add "$name"
-    else
-        herbstclient set_attr tags.${idx}.name "$name"
     fi
+    herbstclient attr tags.by-name."${name}".index ${idx}
 done
+herbstclient use_index 0
+herbstclient try silent merge_tag 'default'
+
+
+herbstclient attr theme.tiling.reset 1
+herbstclient attr theme.floating.reset 1
+herbstclient set frame_border_active_color '#00ff00'
+herbstclient set frame_border_normal_color '#9fbc00'
+herbstclient set window_border_active_color '#00ff00'
+herbstclient attr theme.border_width 0
+herbstclient set smart_frame_surroundings on
+
+
+
+herbstclient keybind Mod4-Return spawn xterm
+
+# go to next workspace; but go back to 0 if the next workspace
+# happens to be empty:
+herbstclient keybind Mod4-space and \
+    , use_index +1 \
+    , compare tags.focus.client_count = 0 \
+    , use_index 0
 
 # herbstclient spawn ~/.config/herbstluftwm/
 
