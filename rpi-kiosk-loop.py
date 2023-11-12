@@ -76,7 +76,7 @@ def download(state):
     cache = state.cfgdir('cache')
     mkdir_force(cache)
     debug(f"Downloading {archiveurl} to {cache}")
-    zippath = os.path.join('archive-current.zip')
+    zippath = os.path.join(cache, 'archive-current.zip')
     call_cmd(['wget', archiveurl, '-O', zippath])
     page_dir = state.cfgdir('page-directory')
     mkdir_force(page_dir)
