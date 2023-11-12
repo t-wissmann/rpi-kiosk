@@ -1,4 +1,4 @@
-# rpi-kiosk - Setup
+# rpi-kiosk - System Setup
 
 This file describes how I set up the raspberry pi to be in a rather minimal
 configuration. So in particular, it lists what I uninstalled. If you already
@@ -22,7 +22,7 @@ desktop (i.e. autologin).
 
 ## Updating the system
 
-Keep the packages up to date! Run:
+Keep the packages up to date all the time! Run:
 ```bash
 sudo apt-get updage
 sudo apt-get upgrade
@@ -33,5 +33,22 @@ afterwards:
 ```bash
 sudo apt-get --with-new-pkgs upgrade
 ```
+Afterwards, give the system a reboot (`systemctl reboot -i`).
 
+## Recommended Packages
+```bash
+sudo apt-get install pavucontrol xterm vim
+```
+## Non-Recommended Software
+To minimize the attack surface, I recommend removing or disabling the following
+software, if not needed:
 
+  - bluetooth:
+  ```
+  sudo systemctl disable bluetooth
+  ```
+  - printing:
+  ```
+  sudo systemctl disable cups
+  ```
+  - splash screen image: remove the `splash` from `/boot/cmdline.txt`
