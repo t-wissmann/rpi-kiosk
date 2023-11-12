@@ -12,7 +12,8 @@ already have a running system, just continue here.
 ```
 sudo apt-get install tmux xdotool x11-utils wget
 sudo apt-get install herbstluftwm picom
-sudo apt-get install mpv mupdf
+sudo apt-get install mpv katarakt
+sudo apt-get install feh
 ```
 **TODO:** image and html
 
@@ -40,5 +41,11 @@ Run:
 ```
 mkdir -p ~/.config
 ln -svrf herbstluftwm ~/.config/
+ln -svrf katarakt.ini ~/.config/
 ```
 
+
+### Restart the X11 session:
+```
+sudo systemctl restart lightdm
+```
