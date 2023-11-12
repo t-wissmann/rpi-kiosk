@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# put all windows in fullscreen mode:
+herbstclient rule fullscreen=on
+
+herbstclient spawn ~/.config/herbstluftwm/
+
