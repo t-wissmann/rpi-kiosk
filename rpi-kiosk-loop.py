@@ -5,6 +5,7 @@ import argparse
 import configparser
 import select
 import signal
+import re
 import time
 import textwrap
 import subprocess
@@ -114,9 +115,9 @@ class Page:
         self.workspace = str(index + 1)
         self.cmd = None
         self.proc = None
+        self.runner = None  # the function that runs the viewing programme
 
     def show_pdf(self):
-        debug(f"On {self.workspace}: PDF {self.filepath}")
         self.cmd = [
              '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
              self.workspace,
@@ -125,8 +126,38 @@ class Page:
              ]
         self.proc = subprocess.Popen(self.cmd)
 
+    def show_mpv(self):
+        self.cmd = [
+             '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
+             self.workspace,
+             'mpv',
+             '--fs',
+             '--loop=inf',
+             '--no-terminal',
+             self.filepath
+             ]
+        self.proc = subprocess.Popen(self.cmd)
+
+    def try_show(self):
+        if self.runner is not None:
+            self.runner(self)
+
     def detect_type(self):
-        pass
+        filetype2callback = {
+            'application/pdf': Page.show_pdf,
+            'video/.*': Page.show_mpv,
+        }
+        xdg_mime = subprocess.run(['xdg-mime', 'query', 'filetype', self.filepath],
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True)
+        filetype = xdg_mime.stdout.strip()
+        debug(f'\"{self.filepath}\" has type \"{filetype}\"')
+        for type_re, callback in filetype2callback.items():
+            if re.match(type_re, filetype):
+                self.runner = callback
+                break
+        if self.runner is None:
+            debug(f'Do not know how to handle filetype \"{filetype}\" of \"{self.filepath}\"')
 
 
 def run_posters_signal_handler(signum, frame):
@@ -145,7 +176,7 @@ def run_posters(state):
         p = Page(state, idx, os.path.join(srcdir, p))
         pages.append(p)
         p.detect_type()
-        p.show_pdf()
+        p.try_show()
 
     keep_running = True
     while keep_running:
@@ -157,7 +188,8 @@ def run_posters(state):
 
     # send termination signal to all:
     for p in pages:
-        p.proc.terminate()
+        if p.proc is not None:
+            p.proc.terminate()
 
     # wait for them to actually shut down:
     now = time.clock_gettime(time.CLOCK_MONOTONIC)
@@ -166,7 +198,8 @@ def run_posters(state):
     total_timeout = now + 20
     try:
         for p in pages:
-            p.proc.wait(timeout=max(0, total_timeout - now))
+            if p.proc is not None:
+                p.proc.wait(timeout=max(0, total_timeout - now))
             # update current timestamp:
             now = time.clock_gettime(time.CLOCK_MONOTONIC)
     except TimeoutExpired:
