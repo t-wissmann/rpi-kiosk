@@ -58,14 +58,14 @@ class State:
         """returns the time between automatic page switches in seconds"""
         if self.args.auto_page_switch is not None:
             return float(self.args.auto_page_switch)
-        # return self.cfgdir('auto-page-switch')
+        return float(self.cfgdir('auto-page-switch'))
 
     def default_config(self):
         return {
             'kiosk': {
                 'cache': '~/.rpi-kiosk/cache/',
                 'page-directory': '~/.rpi-kiosk/pages',
-                # 'auto-page-switch': 3,
+                'auto-page-switch': '5',
             }
         }
 
