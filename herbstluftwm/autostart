@@ -13,7 +13,7 @@ herbstclient spawn picom -f  --backend glx
 
 
 pkill -f 'python.*rpi-kiosk-loop.py'
-~/rpi-kiosk/rpi-kiosk-loop.py run
+herbstclient spawn ~/rpi-kiosk/rpi-kiosk-loop.py run
 
 # black background:
 xsetroot -solid '#000000'
