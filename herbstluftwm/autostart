@@ -9,7 +9,11 @@ if herbstclient compare my_first_start = true ; then
 fi
 
 killall picom
-herbstclient spawn picom -f
+herbstclient spawn picom -f  --backend glx
+
+
+pkill -f 'python.*rpi-kiosk-loop.py'
+~/rpi-kiosk/rpi-kiosk-loop.py run
 
 # black background:
 xsetroot -solid '#000000'

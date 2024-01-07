@@ -4,6 +4,7 @@ import sys
 import argparse
 import configparser
 import select
+import shlex
 import signal
 import re
 import time
@@ -53,11 +54,18 @@ class State:
         cfg = self.config()
         return os.path.expanduser(cfg[section][key])
 
+    def auto_page_switch(self):
+        """returns the time between automatic page switches in seconds"""
+        if self.args.auto_page_switch is not None:
+            return float(self.args.auto_page_switch)
+        # return self.cfgdir('auto-page-switch')
+
     def default_config(self):
         return {
             'kiosk': {
                 'cache': '~/.rpi-kiosk/cache/',
                 'page-directory': '~/.rpi-kiosk/pages',
+                # 'auto-page-switch': 3,
             }
         }
 
@@ -179,12 +187,29 @@ def run_posters(state):
         p.try_show()
 
     keep_running = True
+    last_autoswitch_time = time.time()
+    auto_page_switch = state.auto_page_switch()
     while keep_running:
         data_ready = select.select([], [], [], 1.0)[0]
         if run_posters.signal_received is not None:
             debug(f"Exiting because of signal {run_posters.signal_received}")
             keep_running = False
             break
+
+        if auto_page_switch is not None and auto_page_switch > 0:
+            time_now = time.time()
+            time_since_last_autoswitch = time_now - last_autoswitch_time
+            if time_since_last_autoswitch >= auto_page_switch:
+                last_autoswitch_time = time_now
+                cmd_text = """
+                herbstclient and
+                    , use_index +1
+                    , compare tags.focus.client_count = 0
+                    , use_index 0
+                """
+                cmd_args = shlex.split(cmd_text)
+                # debug(f'Running: {cmd_args}')
+                subprocess.run(cmd_args)
 
     # send termination signal to all:
     for p in pages:
@@ -211,6 +236,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default=os.path.join(Path.home(), '.config', 'rpi-kiosk.ini'),
                         help='Configuration file; default: ~/.config/rpi-kiosk.ini')
+    parser.add_argument('--auto-page-switch',
+                        help='automatically switch between pages within <n> seconds')
     subcommands = {
         'download': download,
         'run': run_posters,
