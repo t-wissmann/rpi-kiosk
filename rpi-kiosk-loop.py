@@ -141,6 +141,8 @@ class Page:
         self.cmd = [
              'mpv',
              '--loop=inf',
+             '--keepaspect=yes',
+             '--keepaspect-window=no',
              '--no-terminal',
              self.filepath
              ]
@@ -217,7 +219,6 @@ def run_posters(state):
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
     while keep_running:
-        debug('select()')
         data_ready = select.select([wf_sock.client], [], [], 1.0)[0]
         if wf_sock.client in data_ready:
             msg = wf_sock.read_next_event()
@@ -231,7 +232,8 @@ def run_posters(state):
                             'x': 0,
                             'y': 0,
                             'width': 2160,
-                            'height': 3054,
+                            #'height': 3054, ## din a4 height
+                            'height': 3840,  ## full screen height
                         }
                         debug(f'Move {view["title"]} to workspace {p.index}')
                         wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
