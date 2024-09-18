@@ -205,16 +205,19 @@ def run_posters(state):
     signal.signal(signal.SIGINT, run_posters_signal_handler)
     signal.signal(signal.SIGTERM, run_posters_signal_handler)
 
-    for idx, p in enumerate(filenames):
+    keep_running = True
+
+    # first listen for events
+    wf_sock = WayfireSocket()
+    wf_sock.watch(['view-mapped'])
+
+    # and only then start the applications
+
+    for idx, p in enumerate(sorted(filenames)):
         p = Page(state, idx, os.path.join(srcdir, p))
         pages.append(p)
         if p.detect_type():
             p.try_show()
-
-    keep_running = True
-
-    wf_sock = WayfireSocket()
-    wf_sock.watch(['view-mapped'])
 
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
