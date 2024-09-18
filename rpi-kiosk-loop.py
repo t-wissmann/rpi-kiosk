@@ -221,6 +221,7 @@ def run_posters(state):
 
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
+    current_ws = 0
     while keep_running:
         data_ready = select.select([wf_sock.client], [], [], 1.0)[0]
         if wf_sock.client in data_ready:
@@ -251,7 +252,10 @@ def run_posters(state):
             if time_since_last_autoswitch >= auto_page_switch:
                 last_autoswitch_time = time_now
                 # TODO: switch to next poster now
-                pass
+                current_ws += 1
+                current_ws %= len(pages)
+                wf_sock.set_workspace(current_ws, 0, output_id=1)
+
 
     # send termination signal to all:
     for p in pages:
