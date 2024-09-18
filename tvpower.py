@@ -34,6 +34,7 @@ def main():
     # cec-ctl -d0 --tv -S  # <- configure the adapter
     cec_ctl = ['cec-ctl', '-d0']
     if args.on:
+        run_cmd(cec_ctl + ['--tv', '-S'])
         run_cmd(cec_ctl + ['-t0', '--image-view-on'])
     if args.off:
         run_cmd(cec_ctl + ['--tv', '-S'])

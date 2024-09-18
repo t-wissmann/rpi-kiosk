@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 herbstclient unlock
+herbstclient detect_monitors
 
 herbstclient silent try new_attr bool my_first_start true
 if herbstclient compare my_first_start = true ; then
@@ -25,6 +26,10 @@ fi
 # blank cursor:
 cursor=$HOME/.config/herbstluftwm/blank_ptr.xbm
 xsetroot -cursor "$cursor" "$cursor"
+
+# rotate screen accordingly:
+xrandr --output HDMI-1 --auto  --rotate right \
+       --output HDMI-2 --auto --rotate right
 
 # move mouse to bottom right corner:
 xdotool mousemove 10000 10000
@@ -57,6 +62,7 @@ herbstclient set smart_frame_surroundings on
 
 
 herbstclient keybind Mod4-Return spawn xterm
+herbstclient keybind Mod4-q chain , spawn killall python3 , attr theme.border_width 30 , set smart_frame_surroundings off , set frame_gap 30
 
 # go to next workspace; but go back to 0 if the next workspace
 # happens to be empty:
