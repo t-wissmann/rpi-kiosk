@@ -125,26 +125,27 @@ class Page:
         self.proc = None
         self.runner = None  # the function that runs the viewing programme
 
+        # a callback that determines whether a wayfire view object
+        # corresponds to the present page:
+        self.is_wayfire_view = None
+
+    def mk_wayfire_pid_callback(self, pid):
+        return (lambda view: view['pid'] == pid)
+
     def show_pdf(self):
-        self.cmd = [
-             '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
-             self.workspace,
-             'katarakt',
-             self.filepath
-             ]
+        self.cmd = ['katarakt', self.filepath ]
         self.proc = subprocess.Popen(self.cmd)
+        self.is_wayfire_view = self.mk_wayfire_pid_callback(self.proc.pid)
 
     def show_mpv(self):
         self.cmd = [
-             '/usr/share/doc/herbstluftwm/examples/exec_on_tag.sh',
-             self.workspace,
              'mpv',
-             '--fs',
              '--loop=inf',
              '--no-terminal',
              self.filepath
              ]
         self.proc = subprocess.Popen(self.cmd)
+        self.is_wayfire_view = self.mk_wayfire_pid_callback(self.proc.pid)
 
     def try_show(self):
         if self.runner is not None:
@@ -166,6 +167,26 @@ class Page:
                 break
         if self.runner is None:
             debug(f'Do not know how to handle filetype \"{filetype}\" of \"{self.filepath}\"')
+            return False
+        else:
+            return True
+
+
+def wf_move_to_workspace(wayfire_socket, view, ws_x: int, ws_y: int, geometry=None):
+    # wayfire_socket: WayfireSocket
+    output = wayfire_socket.get_output(view["output-id"])
+    xsize = output["workarea"]["width"]
+    ysize = output["workarea"]["height"]
+    cur_ws_x = output["workspace"]["x"]
+    cur_ws_y = output["workspace"]["y"]
+
+    if geometry is None:
+        geometry = view["geometry"]
+    x = (geometry["x"] % xsize) + xsize * (ws_x - cur_ws_x)
+    y = (geometry["y"] % ysize) + ysize * (ws_y - cur_ws_y)
+    w = geometry["width"]
+    h = geometry["height"]
+    wayfire_socket.configure_view(view["id"], x, y, w, h)
 
 
 def run_posters_signal_handler(signum, frame):
@@ -173,6 +194,8 @@ def run_posters_signal_handler(signum, frame):
 
 
 def run_posters(state):
+    from wayfire import WayfireSocket
+
     run_posters.signal_received = None
     srcdir = state.cfgdir('page-directory')
     filenames = os.listdir(srcdir)
@@ -183,14 +206,35 @@ def run_posters(state):
     for idx, p in enumerate(filenames):
         p = Page(state, idx, os.path.join(srcdir, p))
         pages.append(p)
-        p.detect_type()
-        p.try_show()
+        if p.detect_type():
+            p.try_show()
 
     keep_running = True
+
+    wf_sock = WayfireSocket()
+    wf_sock.watch(['view-mapped'])
+
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
     while keep_running:
-        data_ready = select.select([], [], [], 1.0)[0]
+        debug('select()')
+        data_ready = select.select([wf_sock.client], [], [], 1.0)[0]
+        if wf_sock.client in data_ready:
+            msg = wf_sock.read_next_event()
+            if "event" in msg:
+                view = msg['view']
+                print(view)
+                for p in pages:
+                    if p.is_wayfire_view(view):
+                        # Also hard-code the geometry:
+                        new_geometry = {
+                            'x': 0,
+                            'y': 0,
+                            'width': 2160,
+                            'height': 3054,
+                        }
+                        debug(f'Move {view["title"]} to workspace {p.index}')
+                        wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
         if run_posters.signal_received is not None:
             debug(f"Exiting because of signal {run_posters.signal_received}")
             keep_running = False
@@ -201,15 +245,8 @@ def run_posters(state):
             time_since_last_autoswitch = time_now - last_autoswitch_time
             if time_since_last_autoswitch >= auto_page_switch:
                 last_autoswitch_time = time_now
-                cmd_text = """
-                herbstclient and
-                    , use_index +1
-                    , compare tags.focus.client_count = 0
-                    , use_index 0
-                """
-                cmd_args = shlex.split(cmd_text)
-                # debug(f'Running: {cmd_args}')
-                subprocess.run(cmd_args)
+                # TODO: switch to next poster now
+                pass
 
     # send termination signal to all:
     for p in pages:
