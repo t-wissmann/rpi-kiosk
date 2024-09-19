@@ -115,7 +115,7 @@ def download(state):
             os.rmdir(dirpath)
 
 
-class Page:
+class Poster:
     def __init__(self, global_state, index, filepath):
         self.state = global_state
         self.index = index
@@ -126,54 +126,49 @@ class Page:
         self.runner = None  # the function that runs the viewing programme
         self.is_mapped = False  # whether the window appeared already
 
-        # a callback that determines whether a wayfire view object
-        # corresponds to the present page:
-        self.is_wayfire_view = None
+    def is_wayfire_view(self, view):
+        return view['pid'] == self.proc.pid
 
-    def mk_wayfire_pid_callback(self, pid):
-        return (lambda view: view['pid'] == pid)
+    def try_show(self):
+        if self.runner is not None:
+            self.runner(self)
 
-    def show_pdf(self):
-        self.cmd = ['katarakt', self.filepath ]
-        self.proc = subprocess.Popen(self.cmd)
-        self.is_wayfire_view = self.mk_wayfire_pid_callback(self.proc.pid)
 
-    def show_mpv(self):
+
+class VideoPoster(Poster):
+    def run(self):
+        self.ipc_socket = f'/tmp/mpv-{self.index}'
         self.cmd = [
              'mpv',
              '--loop=inf',
              '--mute=yes',
              '--keepaspect=yes',
              '--keepaspect-window=no',
+             # f'--input-ipc-server={self.ipc_socket}',
              '--no-terminal',
              self.filepath
              ]
         self.proc = subprocess.Popen(self.cmd)
-        self.is_wayfire_view = self.mk_wayfire_pid_callback(self.proc.pid)
 
-    def try_show(self):
-        if self.runner is not None:
-            self.runner(self)
 
-    def detect_type(self):
-        filetype2callback = {
-            'application/pdf': Page.show_pdf,
-            'video/.*': Page.show_mpv,
-        }
-        xdg_mime = subprocess.run(['xdg-mime', 'query', 'filetype', self.filepath],
-                                  stdout=subprocess.PIPE,
-                                  universal_newlines=True)
-        filetype = xdg_mime.stdout.strip()
-        debug(f'\"{self.filepath}\" has type \"{filetype}\"')
-        for type_re, callback in filetype2callback.items():
-            if re.match(type_re, filetype):
-                self.runner = callback
-                break
-        if self.runner is None:
-            debug(f'Do not know how to handle filetype \"{filetype}\" of \"{self.filepath}\"')
-            return False
-        else:
-            return True
+class PdfPoster(Poster):
+    def run(self):
+        self.cmd = ['katarakt', self.filepath ]
+        self.proc = subprocess.Popen(self.cmd)
+
+def detect_type(filepath):
+    filetype2callback = {
+        'application/pdf': PdfPoster,
+        'video/.*': VideoPoster,
+    }
+    xdg_mime = subprocess.run(['xdg-mime', 'query', 'filetype', filepath],
+                              stdout=subprocess.PIPE,
+                              universal_newlines=True)
+    filetype = xdg_mime.stdout.strip()
+    debug(f'\"{filepath}\" has type \"{filetype}\"')
+    for type_re, callback in filetype2callback.items():
+        if re.match(type_re, filetype):
+            return callback
 
 
 def wf_move_to_workspace(wayfire_socket, view, ws_x: int, ws_y: int, geometry=None):
@@ -215,10 +210,14 @@ def run_posters(state):
     wf_sock.get_configuration()  # a kind of 'ping'
     # and only then start the applications
     for idx, p in enumerate(sorted(filenames)):
-        p = Page(state, idx, os.path.join(srcdir, p))
-        pages.append(p)
-        if p.detect_type():
-            p.try_show()
+        filepath = os.path.join(srcdir, p)
+        cls = detect_type(filepath)
+        if cls is None:
+            debug(f'Can not handle filetype of {filepath}')
+        else:
+            p = cls(state, idx, filepath)
+            pages.append(p)
+            p.run()
 
     # wait for all windows to show up:
     while not all([p.is_mapped for p in pages]):
@@ -297,6 +296,8 @@ def main():
                         help='Configuration file; default: ~/.config/rpi-kiosk.ini')
     parser.add_argument('--auto-page-switch',
                         help='automatically switch between pages within <n> seconds')
+    parser.add_argument('--redirect-output', metavar='LOGFILE',
+                        help='redirect stdout/stderr to the given file')
     subcommands = {
         'download': download,
         'run': run_posters,
@@ -308,6 +309,12 @@ def main():
 
     args = parser.parse_args()
     state = State(args)
+
+    if args.redirect_output is not None:
+        debug(f'redirecting stdout and stderr to {args.redirect_output}')
+        fh = open(args.redirect_output, 'w', buffering=1)  # write line-buffered
+        sys.stderr = fh
+        sys.stdout = fh
 
     # call subcommand:
     if args.subparser_name is not None and args.subparser_name in subcommands:
