@@ -124,6 +124,7 @@ class Page:
         self.cmd = None
         self.proc = None
         self.runner = None  # the function that runs the viewing programme
+        self.is_mapped = False  # whether the window appeared already
 
         # a callback that determines whether a wayfire view object
         # corresponds to the present page:
@@ -210,15 +211,37 @@ def run_posters(state):
     # first listen for events
     wf_sock = WayfireSocket()
     wf_sock.watch(['view-mapped'])
-
+    wf_sock.get_configuration()  # a kind of 'ping'
     # and only then start the applications
-
     for idx, p in enumerate(sorted(filenames)):
         p = Page(state, idx, os.path.join(srcdir, p))
         pages.append(p)
         if p.detect_type():
             p.try_show()
 
+    # wait for all windows to show up:
+    while not all([p.is_mapped for p in pages]):
+        msg = wf_sock.read_next_event()
+        if "event" in msg:
+            view = msg['view']
+            print(view)
+            for p in pages:
+                if p.is_wayfire_view(view):
+                    # Also hard-code the geometry:
+                    new_geometry = {
+                        'x': 0,
+                        'y': 0,
+                        'width': 2160,
+                        #'height': 3054, ## din a4 height
+                        'height': 3840,  ## full screen height
+                    }
+                    debug(f'Move {view["title"]} to workspace {p.index}')
+                    time.sleep(0.3)  # wait for all to show up properly 
+                    wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
+                    wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
+                    p.is_mapped = True
+
+    debug('All posters have shown up')
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
     current_ws = 0
@@ -229,18 +252,7 @@ def run_posters(state):
             if "event" in msg:
                 view = msg['view']
                 print(view)
-                for p in pages:
-                    if p.is_wayfire_view(view):
-                        # Also hard-code the geometry:
-                        new_geometry = {
-                            'x': 0,
-                            'y': 0,
-                            'width': 2160,
-                            #'height': 3054, ## din a4 height
-                            'height': 3840,  ## full screen height
-                        }
-                        debug(f'Move {view["title"]} to workspace {p.index}')
-                        wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
+
         if run_posters.signal_received is not None:
             debug(f"Exiting because of signal {run_posters.signal_received}")
             keep_running = False
