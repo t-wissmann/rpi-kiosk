@@ -142,6 +142,7 @@ class Page:
         self.cmd = [
              'mpv',
              '--loop=inf',
+             '--mute=yes',
              '--keepaspect=yes',
              '--keepaspect-window=no',
              '--no-terminal',
