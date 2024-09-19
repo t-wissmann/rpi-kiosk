@@ -4,6 +4,7 @@ import sys
 import argparse
 import configparser
 import select
+import socket
 import shlex
 import signal
 import re
@@ -125,6 +126,7 @@ class Poster:
         self.proc = None
         self.runner = None  # the function that runs the viewing programme
         self.is_mapped = False  # whether the window appeared already
+        self.duration = None  # How long the poster should be visible
 
     def is_wayfire_view(self, view):
         return view['pid'] == self.proc.pid
@@ -133,18 +135,57 @@ class Poster:
         if self.runner is not None:
             self.runner(self)
 
+    def start_playback(self):
+        pass
+
+    def stop_playback(self):
+        pass
 
 
 class VideoPoster(Poster):
+
+    def duration_not_cached(self):
+        command = [
+            'ffprobe',
+            '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            self.filepath
+        ]
+        result = subprocess.run(command,
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True)
+        try:
+            return int(float(result.stdout.strip()))
+        except e:
+            return None
+
+    def send_ipc(self, text):
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect(self.ipc_socket)
+        if not text.endswith('\n'):
+            text = text + '\n'
+        s.send(text.encode())
+        s.close()
+
+    def start_playback(self):
+        self.send_ipc('{ "command": ["set_property", "pause", false] }')
+
+    def stop_playback(self):
+        self.send_ipc('{ "command": ["set_property", "pause", true] }')
+        self.send_ipc("seek 0 absolute-percent")
+
     def run(self):
+        self.duration = self.duration_not_cached()
         self.ipc_socket = f'/tmp/mpv-{self.index}'
         self.cmd = [
              'mpv',
              '--loop=inf',
              '--mute=yes',
+             '--pause',
              '--keepaspect=yes',
              '--keepaspect-window=no',
-             # f'--input-ipc-server={self.ipc_socket}',
+             f'--input-ipc-server={self.ipc_socket}',
              '--no-terminal',
              self.filepath
              ]
@@ -261,12 +302,15 @@ def run_posters(state):
         if auto_page_switch is not None and auto_page_switch > 0:
             time_now = time.time()
             time_since_last_autoswitch = time_now - last_autoswitch_time
-            if time_since_last_autoswitch >= auto_page_switch:
+            if time_since_last_autoswitch >= (pages[current_ws].duration or auto_page_switch):
                 last_autoswitch_time = time_now
                 # TODO: switch to next poster now
+                old_ws = current_ws
                 current_ws += 1
                 current_ws %= len(pages)
                 wf_sock.set_workspace(current_ws, 0, output_id=1)
+                pages[old_ws].stop_playback()
+                pages[current_ws].start_playback()
 
 
     # send termination signal to all:
