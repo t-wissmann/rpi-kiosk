@@ -49,3 +49,23 @@ ln -svrf katarakt.ini ~/.config/
 ```
 sudo systemctl restart lightdm
 ```
+
+
+### Reverse SSH Portforward
+Create a user `portforward` and a file `/etc/systemd/system/ssh-portforward.service` containing
+```ini
+[Unit]
+Description=Reverse SSH connection
+After=network.target
+
+[Service]
+Type=simple
+User=portforward
+ExecStart=/usr/bin/ssh -v -g -N -T -o "ServerAliveInterval 10" -o "ExitOnForwardFailure yes" -R 10022:localhost:22 portforward@some-public-server.org
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
+```
+The `portforward` user needs to be able to connect to the specified server via ssh where preferably [only port forwarding is allowed](https://askubuntu.com/a/50000/547950).
