@@ -306,12 +306,12 @@ def run_posters(state):
             time_since_last_autoswitch = time_now - last_autoswitch_time
             if time_since_last_autoswitch >= (pages[current_ws].duration or auto_page_switch):
                 last_autoswitch_time = time_now
-                # TODO: switch to next poster now
+                # switch to next poster now
                 old_ws = current_ws
                 current_ws += 1
                 current_ws %= len(pages)
-                wf_sock.set_workspace(current_ws, 0, output_id=output_id)
                 pages[old_ws].stop_playback()
+                wf_sock.set_workspace(current_ws, 0, output_id=output_id)
                 pages[current_ws].start_playback()
 
 
