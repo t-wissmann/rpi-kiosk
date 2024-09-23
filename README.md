@@ -18,7 +18,7 @@ Also, this script requires `wayfire` in version 0.8.1
 
 ## Setup
 
-### Configure Window Manager
+### Configure window manager
 
 Run:
 ```
@@ -26,7 +26,14 @@ mkdir -p ~/.config
 ln -svrf wayfire.ini ~/.config/
 ln -svrf katarakt.ini ~/.config/
 ```
-
+### Configure the desktop session type
+Configure `/etc/lightdm/lightdm.conf` such that:
+```ini
+[Seat:*]
+autologin-user=YourUserName
+autologin-session=wayfire
+user-session=wayfire
+```
 
 ### Restart the session:
 ```
