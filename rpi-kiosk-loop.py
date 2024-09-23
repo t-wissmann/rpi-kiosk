@@ -249,6 +249,7 @@ def run_posters(state):
     wf_sock = WayfireSocket()
     wf_sock.watch(['view-mapped'])
     wf_sock.get_configuration()  # a kind of 'ping'
+    output_id = None
     # and only then start the applications
     for idx, p in enumerate(sorted(filenames)):
         filepath = os.path.join(srcdir, p)
@@ -266,6 +267,7 @@ def run_posters(state):
         if "event" in msg:
             view = msg['view']
             print(view)
+            output_id = view['output-id']
             for p in pages:
                 if p.is_wayfire_view(view):
                     # Also hard-code the geometry:
@@ -308,7 +310,7 @@ def run_posters(state):
                 old_ws = current_ws
                 current_ws += 1
                 current_ws %= len(pages)
-                wf_sock.set_workspace(current_ws, 0, output_id=1)
+                wf_sock.set_workspace(current_ws, 0, output_id=output_id)
                 pages[old_ws].stop_playback()
                 pages[current_ws].start_playback()
 
