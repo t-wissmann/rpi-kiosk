@@ -10,42 +10,25 @@ already have a running system, just continue here.
 ## Required Software
 
 ```
-sudo apt-get install tmux xdotool x11-utils wget
-sudo apt-get install herbstluftwm picom
+sudo apt-get install tmux wget
 sudo apt-get install mpv katarakt
-sudo apt-get install feh
 ```
+Also, this script requires `wayfire` in version 0.8.1
 **TODO:** image and html
 
-<!-- old attempt:
-sudo apt-get install compiz-{core,plugins,plugins-extra} compizconfig-settings-manager python3-compizconfig
--->
-
 ## Setup
-
-### X11
-
-The current scripts require X11 and that the rpi automatically boots in the a
-user's X11 session:
-
-* switch to X11 via `sudo raspi-config`
-* configure auto-login with Desktop (also in `sudo raspi-config`)
-* set the session type to `herbstluftwm` in `/etc/lightdm/lightdm.conf` by setting `autologin-session`:
-```
-autologin-session=herbstluftwm
-```
 
 ### Configure Window Manager
 
 Run:
 ```
 mkdir -p ~/.config
-ln -svrf herbstluftwm ~/.config/
+ln -svrf wayfire.ini ~/.config/
 ln -svrf katarakt.ini ~/.config/
 ```
 
 
-### Restart the X11 session:
+### Restart the session:
 ```
 sudo systemctl restart lightdm
 ```
