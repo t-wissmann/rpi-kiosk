@@ -2,6 +2,8 @@
 import sys
 import argparse
 import subprocess
+import os
+import signal
 
 
 def debug(mesg):
@@ -32,13 +34,24 @@ def main():
     # cec-ctl -d0 -t0 --image-view-on
     # cec-ctl -d0 -t0 --standby
     # cec-ctl -d0 --tv -S  # <- configure the adapter
+    rpi_kiosk_loop_pid = None
+    try:
+        with open('/tmp/rpi-kiosk.pid') as fh:
+            rpi_kiosk_loop_pid = int(fh.read())
+        debug(f'rpi-kiosk-loop.py has pid {rpi_kiosk_loop_pid}')
+    except Exception as e:
+        debug(f'Cannot determine PID of {rpi_kiosk_loop_pid} ({e})')
     cec_ctl = ['cec-ctl', '-d0']
     if args.on:
         run_cmd(cec_ctl + ['--tv', '-S'])
         run_cmd(cec_ctl + ['-t0', '--image-view-on'])
+        if rpi_kiosk_loop_pid:
+            os.kill(rpi_kiosk_loop_pid, signal.SIGUSR2)
     if args.off:
         run_cmd(cec_ctl + ['--tv', '-S'])
         run_cmd(cec_ctl + ['-t0', '--standby'])
+        if rpi_kiosk_loop_pid:
+            os.kill(rpi_kiosk_loop_pid, signal.SIGUSR1)
     if not args.on and not args.off:
         debug('Warning: neither --off nor --on supplied.')
 

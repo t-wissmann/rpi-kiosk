@@ -70,6 +70,16 @@ class State:
             }
         }
 
+    def make_pidfile(self):
+        with open(self.args.pid_file, 'w') as fh:
+            print(os.getpid(), file=fh)
+
+    def rm_pidfile(self):
+        try:
+            os.unlink(self.args.pid_file)
+        except Exception as e:
+            pass
+
 
 def mkdir_force(path):
     """create a directory; ignore if it already exists"""
@@ -229,6 +239,23 @@ def wf_move_to_workspace(wayfire_socket, view, ws_x: int, ws_y: int, geometry=No
     wayfire_socket.configure_view(view["id"], x, y, w, h)
 
 
+def move_poster_to_its_workspace(all_posters, view, wayfire_socket):
+    for p in all_posters:
+        if p.is_wayfire_view(view):
+            # Also hard-code the geometry:
+            new_geometry = {
+                'x': 0,
+                'y': 0,
+                'width': 2160,
+                #'height': 3054, ## din a4 height
+                'height': 3840,  ## full screen height
+            }
+            debug(f'Move {view["title"]} to workspace {p.index}')
+            time.sleep(0.3)  # wait for all to show up properly 
+            wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
+            wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
+            p.is_mapped = True
+
 def run_posters_signal_handler(signum, frame):
     run_posters.signal_received = signum
 
@@ -242,8 +269,11 @@ def run_posters(state):
     pages = []
     signal.signal(signal.SIGINT, run_posters_signal_handler)
     signal.signal(signal.SIGTERM, run_posters_signal_handler)
+    signal.signal(signal.SIGUSR1, run_posters_signal_handler)
+    signal.signal(signal.SIGUSR2, run_posters_signal_handler)
 
     keep_running = True
+    state.make_pidfile()
 
     # first listen for events
     wf_sock = WayfireSocket()
@@ -268,40 +298,42 @@ def run_posters(state):
             view = msg['view']
             print(view)
             output_id = view['output-id']
-            for p in pages:
-                if p.is_wayfire_view(view):
-                    # Also hard-code the geometry:
-                    new_geometry = {
-                        'x': 0,
-                        'y': 0,
-                        'width': 2160,
-                        #'height': 3054, ## din a4 height
-                        'height': 3840,  ## full screen height
-                    }
-                    debug(f'Move {view["title"]} to workspace {p.index}')
-                    time.sleep(0.3)  # wait for all to show up properly 
-                    wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
-                    wf_move_to_workspace(wf_sock, view, p.index, 0, geometry=new_geometry)
-                    p.is_mapped = True
+            move_poster_to_its_workspace(pages, view, wf_sock)
 
     debug('All posters have shown up')
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
     current_ws = 0
+    paused = False
     while keep_running:
-        data_ready = select.select([wf_sock.client], [], [], 1.0)[0]
+        interval = 1.0 if not paused else 2.0
+        # TODO: why isn't select() interrupted by signals?
+        data_ready = select.select([wf_sock.client], [], [], interval)[0]
         if wf_sock.client in data_ready:
-            msg = wf_sock.read_next_event()
+            try:
+                msg = wf_sock.read_next_event()
+            except Exception as e:
+                msg = []
             if "event" in msg:
                 view = msg['view']
                 print(view)
 
-        if run_posters.signal_received is not None:
+        if run_posters.signal_received == signal.SIGUSR1:
+            debug('Pausing (because of SIGUSR1)')
+            run_posters.signal_received = None
+            for p in pages:
+                p.stop_playback()
+            paused = True
+        elif run_posters.signal_received == signal.SIGUSR2:
+            debug('Resuming (because of SIGUSR2)')
+            run_posters.signal_received = None
+            paused = False
+        elif run_posters.signal_received is not None:
             debug(f"Exiting because of signal {run_posters.signal_received}")
             keep_running = False
             break
 
-        if auto_page_switch is not None and auto_page_switch > 0:
+        if not paused and auto_page_switch is not None and auto_page_switch > 0:
             time_now = time.time()
             time_since_last_autoswitch = time_now - last_autoswitch_time
             if time_since_last_autoswitch >= (pages[current_ws].duration or auto_page_switch):
@@ -311,6 +343,16 @@ def run_posters(state):
                 current_ws += 1
                 current_ws %= len(pages)
                 pages[old_ws].stop_playback()
+                all_wf_views = wf_sock.list_views()
+                for view in all_wf_views:
+                    old_output_id = output_id
+                    output_id = view['output-id']
+                    break
+                if old_output_id != output_id:
+                    debug(f'new output_id = {output_id} (old value: {old_output_id})')
+                    # move all posters to their workspace again
+                    for view in all_wf_views:
+                        move_poster_to_its_workspace(pages, view, wf_sock)
                 wf_sock.set_workspace(current_ws, 0, output_id=output_id)
                 pages[current_ws].start_playback()
 
@@ -319,6 +361,8 @@ def run_posters(state):
     for p in pages:
         if p.proc is not None:
             p.proc.terminate()
+
+    state.rm_pidfile()
 
     # wait for them to actually shut down:
     now = time.clock_gettime(time.CLOCK_MONOTONIC)
@@ -344,6 +388,8 @@ def main():
                         help='automatically switch between pages within <n> seconds')
     parser.add_argument('--redirect-output', metavar='LOGFILE',
                         help='redirect stdout/stderr to the given file')
+    parser.add_argument('--pid-file', metavar='LOGFILE', default='/tmp/rpi-kiosk.pid',
+                        help='write own pid to the specified file (only affects "run" command)')
     subcommands = {
         'download': download,
         'run': run_posters,
