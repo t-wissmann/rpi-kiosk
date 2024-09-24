@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 
-DIR=$(basename "$0")
+DIR=$(dirname "$0")
 $DIR/rpi-kiosk-loop.py --redirect-output=$HOME/logs/rpi-kiosk-loop.log run
 
 if ! [[ "$?" -eq 0 ]] ; then
