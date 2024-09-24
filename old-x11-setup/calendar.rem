@@ -1,0 +1,27 @@
+# The calendar listing when
+# the tv screen is supposed to be switched on.
+# The message is only for documentation
+PUSH
+
+# Bringzeit:
+REM Monday    AT 7:00 DURATION 1:40 MSG Bring-Zeit Mo
+REM Tuesday   AT 7:00 DURATION 1:40 MSG Bring-Zeit Di
+REM Wednesday AT 7:00 DURATION 1:40 MSG Bring-Zeit Mi
+REM Thursday  AT 7:00 DURATION 1:40 MSG Bring-Zeit Do
+REM Friday    AT 7:00 DURATION 1:40 MSG Bring-Zeit Fr
+
+# Abholzeit 1: 11:20 - 13:10
+REM Monday    AT 11:20 DURATION 1:50 MSG Mittags Mo
+REM Tuesday   AT 11:20 DURATION 1:50 MSG Mittags Di
+REM Wednesday AT 11:20 DURATION 1:50 MSG Mittags Mi
+REM Thursday  AT 11:20 DURATION 1:50 MSG Mittags Do
+REM Friday    AT 11:20 DURATION 1:50 MSG Mittags Fr
+
+# Abholzeit 2: 14:00 - 15:10
+REM Monday    AT 14:00 DURATION 1:10 MSG Nachmittags Mo
+REM Tuesday   AT 14:00 DURATION 1:10 MSG Nachmittags Di
+REM Wednesday AT 14:00 DURATION 1:10 MSG Nachmittags Mi
+REM Thursday  AT 14:00 DURATION 1:10 MSG Nachmittags Do
+REM Friday    AT 14:00 DURATION 1:10 MSG Nachmittags Fr
+
+POP

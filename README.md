@@ -59,3 +59,17 @@ RestartSec=5s
 WantedBy=default.target
 ```
 The `portforward` user needs to be able to connect to the specified server via ssh where preferably [only port forwarding is allowed](https://askubuntu.com/a/50000/547950).
+
+
+### RTC / Auto Wake Up
+
+In order to wake up the rpi at a configurable time, following
+[these instructions](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#real-time-clock-rtc). Concretely, run
+```bash
+sudo -E rpi-eeprom-config --edit
+```
+and swap the values of these two variables as follows:
+```ini
+POWER_OFF_ON_HALT=1
+WAKE_ON_GPIO=0
+```
