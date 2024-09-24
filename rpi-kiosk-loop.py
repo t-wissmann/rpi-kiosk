@@ -193,6 +193,7 @@ class VideoPoster(Poster):
              '--loop=inf',
              '--mute=yes',
              '--pause',
+             # '--script-opts-append=osc-visibility=always', ## for debugging
              '--keepaspect=yes',
              '--keepaspect-window=no',
              f'--input-ipc-server={self.ipc_socket}',
@@ -311,6 +312,7 @@ def run_posters(state):
     debug('All posters have shown up')
     last_autoswitch_time = time.time()
     auto_page_switch = state.auto_page_switch()
+    pages[0].start_playback()
     current_ws = 0
     paused = False
     while keep_running:
