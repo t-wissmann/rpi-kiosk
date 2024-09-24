@@ -252,9 +252,17 @@ def move_poster_to_its_workspace(all_posters, view, wayfire_socket):
             }
             debug(f'Move {view["title"]} to workspace {p.index}')
             time.sleep(0.3)  # wait for all to show up properly 
-            wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
-            wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
+            for attempt in range(0, 5):
+                # output IDs change rather often; so just make multiple
+                # attempts to move the window to solve the race condition
+                try:
+                    wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
+                    wf_move_to_workspace(wayfire_socket, view, p.index, 0, geometry=new_geometry)
+                    break
+                except Exception:
+                    pass
             p.is_mapped = True
+
 
 def run_posters_signal_handler(signum, frame):
     run_posters.signal_received = signum

@@ -21,6 +21,8 @@ def main():
     screens connected via hdmi that can be controlled via cec (using cec-ctl).
     """
     parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument('--no-send-playback-signal', dest='send_signal', default=True, action='store_false',
+                        help='do not send USR1/USR2 to the rpi kiosk loop for pausing/resuming playback')
     parser.add_argument('--on', default=False, action='store_true',
                         help='switch hdmi tv screen on')
     parser.add_argument('--off', default=False, action='store_true',
@@ -35,12 +37,13 @@ def main():
     # cec-ctl -d0 -t0 --standby
     # cec-ctl -d0 --tv -S  # <- configure the adapter
     rpi_kiosk_loop_pid = None
-    try:
-        with open('/tmp/rpi-kiosk.pid') as fh:
-            rpi_kiosk_loop_pid = int(fh.read())
-        debug(f'rpi-kiosk-loop.py has pid {rpi_kiosk_loop_pid}')
-    except Exception as e:
-        debug(f'Cannot determine PID of {rpi_kiosk_loop_pid} ({e})')
+    if args.send_signal:
+        try:
+            with open('/tmp/rpi-kiosk.pid') as fh:
+                rpi_kiosk_loop_pid = int(fh.read())
+            debug(f'rpi-kiosk-loop.py has pid {rpi_kiosk_loop_pid}')
+        except Exception as e:
+            debug(f'Cannot determine PID of {rpi_kiosk_loop_pid} ({e})')
     cec_ctl = ['cec-ctl', '-d0']
     if args.on:
         run_cmd(cec_ctl + ['--tv', '-S'])
