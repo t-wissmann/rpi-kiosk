@@ -195,6 +195,8 @@ class VideoPoster(Poster):
              '--pause',
              # '--script-opts-append=osc-visibility=always', ## for debugging
              '--keepaspect=yes',
+             '--osd-bar=no',
+             '--osd-on-seek=no',
              '--keepaspect-window=no',
              f'--input-ipc-server={self.ipc_socket}',
              '--no-terminal',
